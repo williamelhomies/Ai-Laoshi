@@ -41,7 +41,32 @@ function loadHistory() {
     if (savedHistory && savedHtml) {
         chatHistory = JSON.parse(savedHistory);
         chatMessages.innerHTML = savedHtml;
+
+        // Scroll immediately (in case images are cached and already sized)...
         chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // ...then scroll again once every avatar image has actually finished
+        // loading, since images loading late grow the container and can leave
+        // the scroll position stuck partway down instead of at the bottom.
+        const images = chatMessages.querySelectorAll('img');
+        let remaining = images.length;
+        if (remaining === 0) return;
+
+        images.forEach((img) => {
+            if (img.complete) {
+                remaining--;
+                if (remaining === 0) chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else {
+                img.addEventListener('load', () => {
+                    remaining--;
+                    if (remaining === 0) chatMessages.scrollTop = chatMessages.scrollHeight;
+                });
+                img.addEventListener('error', () => {
+                    remaining--;
+                    if (remaining === 0) chatMessages.scrollTop = chatMessages.scrollHeight;
+                });
+            }
+        });
     }
 
     if (savedDisabled === 'true') {
