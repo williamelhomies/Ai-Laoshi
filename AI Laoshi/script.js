@@ -1,6 +1,6 @@
 // PASTE YOUR APPS SCRIPT WEB APP EXEC URL HERE
 // (Deploy > Manage deployments > Web app > copy the URL ending in /exec)
-const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4SzrTTGnnXMlwyuq-Tpq4arEd6fvLxo6H7V5s6Y9EkWai2bPQTfFlDUTqcG0CkGli/exec";
 
 // --- DOM Elements ---
 const chatWindow = document.getElementById('chat-window');
