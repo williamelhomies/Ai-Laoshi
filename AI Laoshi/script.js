@@ -1,6 +1,6 @@
 // PASTE YOUR APPS SCRIPT WEB APP EXEC URL HERE
 // (Deploy > Manage deployments > Web app > copy the URL ending in /exec)
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4SzrTTGnnXMlwyuq-Tpq4arEd6fvLxo6H7V5s6Y9EkWai2bPQTfFlDUTqcG0CkGli/exec";
+const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE";
 
 // --- DOM Elements ---
 const chatWindow = document.getElementById('chat-window');
@@ -14,6 +14,61 @@ const sendButton = document.getElementById('send-button');
 
 // --- State ---
 let chatHistory = []; // To maintain conversation context
+
+// --- Persistence keys ---
+const STORAGE_KEY_HISTORY = 'laoshi_chat_history';
+const STORAGE_KEY_HTML = 'laoshi_chat_html';
+const STORAGE_KEY_DISABLED = 'laoshi_chat_disabled';
+
+// --- Persistence functions ---
+// Uses localStorage so the conversation survives closing the tab or browser,
+// not just navigating between pages. Swap to sessionStorage if you'd rather
+// the chat reset once the tab is closed.
+function saveHistory() {
+    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(chatHistory));
+    localStorage.setItem(STORAGE_KEY_HTML, chatMessages.innerHTML);
+}
+
+function saveDisabledState(disabled) {
+    localStorage.setItem(STORAGE_KEY_DISABLED, disabled ? 'true' : 'false');
+}
+
+function loadHistory() {
+    const savedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
+    const savedHtml = localStorage.getItem(STORAGE_KEY_HTML);
+    const savedDisabled = localStorage.getItem(STORAGE_KEY_DISABLED);
+
+    if (savedHistory && savedHtml) {
+        chatHistory = JSON.parse(savedHistory);
+        chatMessages.innerHTML = savedHtml;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    if (savedDisabled === 'true') {
+        // Restores a permanent handoff-disabled state (e.g. after INITIATE_HANDOFF)
+        setFormDisabled(true);
+    }
+}
+
+// Optional: clears the saved conversation, e.g. wire this to a "New chat" button
+function clearHistory() {
+    chatHistory = [];
+    localStorage.removeItem(STORAGE_KEY_HISTORY);
+    localStorage.removeItem(STORAGE_KEY_HTML);
+    localStorage.removeItem(STORAGE_KEY_DISABLED);
+    chatMessages.innerHTML = `
+        <div class="flex items-start gap-3 mb-4">
+            <img class="w-10 h-10 rounded-full" src="https://i.ibb.co.com/nvyk1Gp/logo-ong.png" alt="Bot Avatar">
+            <div class="bg-blue-100 p-3 rounded-lg max-w-xs">
+                <p class="text-sm text-gray-800">Hello! How can I assist you?</p>
+            </div>
+        </div>
+    `;
+    setFormDisabled(false);
+}
+
+// Restore any saved conversation as soon as the script runs
+loadHistory();
 
 // --- Event Listeners ---
 chatOpenBtn.addEventListener('click', () => {
@@ -36,6 +91,7 @@ chatForm.addEventListener('submit', function (e) {
     // Add user's message to UI and history
     addMessage(messageText, 'user');
     chatHistory.push({ role: "user", parts: [{ text: messageText }] });
+    saveHistory();
     messageInput.value = '';
 
     // Show typing indicator and disable input
@@ -81,14 +137,17 @@ function onBotResponseSuccess(response) {
     const botMessage = response.text;
     addMessage(botMessage, 'bot');
     chatHistory.push({ role: "model", parts: [{ text: botMessage }] });
+    saveHistory();
 
     // Handle the action from the bot
     if (response.action === 'INITIATE_HANDOFF') {
         // Handoff is complete, disable the form permanently for this session.
         setFormDisabled(true);
+        saveDisabledState(true);
     } else {
         // For 'RESPOND' or 'ASK_FOR_CONTACT', re-enable the form for the user to reply.
         setFormDisabled(false);
+        saveDisabledState(false);
         messageInput.focus();
     }
 }
